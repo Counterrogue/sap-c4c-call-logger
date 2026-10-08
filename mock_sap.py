@@ -5,13 +5,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
 FORM_FIELDS = (
-    "account", "primary_contact", "subject", "reason_for_conversation",
+    "account_number", "account", "primary_contact", "subject", "reason_for_conversation",
     "opportunity", "type_of_contact", "reason_for_contact",
     "product_level_3", "product_level_4", "start_date", "start_time",
     "end_date", "end_time", "organizer", "sales_territory", "notes"
 )
 REQUIRED = (
-    "account", "primary_contact", "subject", "reason_for_conversation",
+    "account_number", "primary_contact", "subject", "reason_for_conversation",
     "type_of_contact", "reason_for_contact", "product_level_3", "sales_territory",
     "start_date", "start_time", "end_date", "end_time"
 )
@@ -28,7 +28,7 @@ border:0;border-radius:5px;cursor:pointer}textarea{min-height:110px}.hint{color:
 <p class="hint">Simulated C4C fields. Saving here does NOT contact SAP or submit for approval.</p>
 <form id="f"><input type="hidden" id="record_id">
 <div class="grid">
-<div><label for="account">Account *</label><input id="account" required></div>
+<div><label for="account_number">Account Number (lookup key) *</label><input id="account_number" required></div>\n<div><label for="account">Account name (optional)</label><input id="account"></div>
 <div><label for="primary_contact">Primary Contact *</label><input id="primary_contact" required></div>
 <div><label for="subject">Subject *</label><input id="subject" required></div>
 <div><label for="reason_for_conversation">Reason for Conversation *</label>
@@ -54,7 +54,7 @@ border:0;border-radius:5px;cursor:pointer}textarea{min-height:110px}.hint{color:
 <script>
 document.querySelector('#f').addEventListener('submit', async e => {
   e.preventDefault(); const data = {id:document.getElementById('record_id').value};
-  for(const k of ['account','primary_contact','subject','reason_for_conversation','opportunity',
+  for(const k of ['account_number','account','primary_contact','subject','reason_for_conversation','opportunity',
     'type_of_contact','reason_for_contact','product_level_3','product_level_4','start_date',
     'start_time','end_date','end_time','organizer','sales_territory','notes']) {
     data[k]=document.getElementById(k).value;
