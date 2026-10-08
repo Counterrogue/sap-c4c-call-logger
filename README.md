@@ -16,11 +16,11 @@
 | Account | Provided per entry; required |
 | Primary Contact | Provided per entry; required |
 | Subject | Notes-based or `General discussion/Check in` |
-| Reason for Conversation | **Without opportunity reference** |
+| Reason for Conversation | Sidebar-editable; initially **Without opportunity reference** |
 | Opportunity | Blank (optional) |
-| Type of contact | **In Person Meeting** |
-| Reason for contact | **(New-) Product Presentation** |
-| Product level 3 | **210 General Lab consumables** |
+| Type of contact | Sidebar-editable; initially **In Person Meeting** |
+| Reason for contact | Sidebar-editable; initially **(New-) Product Presentation** |
+| Product level 3 | Sidebar-editable; initially **210 General Lab consumables** |
 | Product Level 4 | Blank (optional) |
 | Start Date/Time | Chosen date; pairs of starts at 30-minute increments |
 | End Date/Time | Same date; **start + 30 minutes** |
@@ -29,7 +29,13 @@
 | Notes | Notes with next steps appended when needed |
 | Campaign | **Ignored** |
 
-The four dropdown defaults are fixed for now. Later we can infer them from the meeting context.
+### Edit activity defaults
+
+In the sidebar, edit **Type of contact**, **Reason for Conversation**, **Reason for contact**, and **Product level 3**, alongside **Organizer** and **Sales Territory**. New individual and bulk entries use those values. Existing queued entries retain the values they had when created.
+
+Select **Save settings on this computer** to keep them across app restarts. This writes only a local `.local_activity_defaults.json` file, which is ignored by Git. **Restore built-in defaults** clears the saved file and restores the original values.
+
+The LOCAL simulator allows any nonblank dropdown label to make prototype testing possible. **Real SAP C4C requires exact allowed dropdown options**; no live C4C option lookup has been implemented. Later we can infer recommended values from the meeting context.
 
 ## Windows installation
 
