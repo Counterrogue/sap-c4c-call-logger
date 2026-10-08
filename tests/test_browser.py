@@ -11,14 +11,18 @@ def test_playwright_full_field_readback():
             browser.close()
     except Exception as exc:
         pytest.skip(f"Playwright Chromium is not installed: {exc}")
-    calls = make_bulk_calls([{"contact":"Dr A"},{"contact":"Dr B"}],
-                            date(2026,10,8), time(9,0), "Demo University",
-                            organizer="Demo Organizer", sales_territory="Demo Territory",
-                            activity_defaults={
-                                "type_of_contact":"Custom example contact",
-                                "reason_for_conversation":"Custom example conversation",
-                                "reason_for_contact":"Custom example reason",
-                                "product_level_3":"Custom example product",
-                            })
+    calls = make_bulk_calls([
+        {"contact":"Dr A"},
+        {"contact":"Dr B", "account_number":"000000002", "account":"Other Demo"}
+    ], date(2026,10,8), time(9,0), "Demo University",
+       default_account_number="000000001",
+       organizer="Demo Organizer", sales_territory="Demo Territory",
+       activity_defaults={
+           "type_of_contact":"Custom example contact",
+           "reason_for_conversation":"Custom example conversation",
+           "reason_for_contact":"Custom example reason",
+           "product_level_3":"Custom example product"
+       })
+    assert [call.account_number for call in calls] == ["000000001", "000000002"]
     saved, errors, _ = submit_to_mock(calls)
     assert not errors and len(saved) == 2
