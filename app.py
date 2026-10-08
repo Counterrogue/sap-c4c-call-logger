@@ -58,7 +58,7 @@ if "queue" not in st.session_state:
     st.session_state.queue = []
 if "rows" not in st.session_state:
     st.session_state.rows = [
-        {"contact":"","account":"","notes":"","next_steps":"","subject":""}
+        {"contact":"","account_number":"","account":"","notes":"","next_steps":"","subject":""}
         for _ in range(16)
     ]
 if "editor_key" not in st.session_state:
@@ -69,8 +69,10 @@ notes_tab, bulk_tab, queue_tab = st.tabs([
 ])
 with notes_tab:
     st.subheader("Meeting transcript or handwritten notes")
+    account_number = st.text_input("Account Number * (exact C4C account ID)",
+                                   key="single_account_number", placeholder="00001234")
     col1, col2 = st.columns(2)
-    account = col1.text_input("Account", key="single_account", placeholder="Demo University")
+    account = col1.text_input("Account name (optional label)", key="single_account", placeholder="Demo University")
     contact = col2.text_input("Primary Contact", key="single_contact", placeholder="Dr. Example")
     col1, col2 = st.columns(2)
     meeting_date = col1.date_input("Start Date", date.today(), key="single_date")
@@ -84,14 +86,14 @@ with notes_tab:
         st.warning("AI sends notes and images to an external provider. Use synthetic demo data only.")
     if st.button("Prepare activity", key="prepare", type="primary"):
         try:
-            if not account.strip() or not contact.strip():
-                raise ValueError("Enter Account and Primary Contact")
+            if not account_number.strip() or not contact.strip():
+                raise ValueError("Enter Account Number and Primary Contact")
             draft = extract_call(transcript,
                                  photo.getvalue() if photo else None,
                                  photo.type if photo else "image/jpeg",
                                  use_ai)
             st.session_state.draft = {
-                "account":account, "contact":contact,
+                "account":account, "account_number":account_number.strip(), "contact":contact,
                 "date":meeting_date.isoformat(),
                 "start_time":meeting_time.strftime("%H:%M"), **draft
             }
@@ -110,7 +112,8 @@ with notes_tab:
                     if not territory.strip():
                         raise ValueError("Sales Territory is required")
                     call = Call(
-                        id=str(uuid4()), account=draft["account"], contact=draft["contact"],
+                        id=str(uuid4()), account=draft["account"],
+                        account_number=draft["account_number"], contact=draft["contact"],
                         date=draft["date"], start_time=draft["start_time"],
                         subject=subject, notes=clean_notes, next_steps=next_steps,
                         source="meeting-notes", organizer=organizer, sales_territory=territory,
@@ -124,32 +127,42 @@ with notes_tab:
 
 with bulk_tab:
     st.subheader("University call-day bulk entry")
+    default_account_number = st.text_input(
+        "Account Number * (applies to all meetings unless overridden)",
+        key="bulk_default_account_number", placeholder="00001234",
+        help="C4C account ID, not an account name. Leading zeros are preserved."
+    )
     a,b,c = st.columns(3)
-    default_account = a.text_input("University / default account", placeholder="Demo University")
+    default_account = a.text_input("University / account name (optional label)", placeholder="Demo University")
     day = b.date_input("Start Date", date.today(), key="bulk_date")
     first = c.time_input("First meeting time", time(9,0), key="bulk_time", step=1800)
     st.info("Each pair shares a start time. 9:00–9:30, 9:00–9:30, 9:30–10:00, 9:30–10:00, etc.")
+    st.caption("Account Number takes precedence over account name. Use per-row overrides when needed.")
     paste = st.text_area("Paste contacts: one per line, optionally Name | Notes | Next steps")
     if st.button("Fill table from list"):
         parsed = parse_pasted_attendees(paste)
         st.session_state.rows = [
-            {"contact":r["contact"],"account":"","notes":r["notes"],
+            {"contact":r["contact"],"account_number":"","account":"","notes":r["notes"],
              "next_steps":r["next_steps"],"subject":""} for r in parsed
         ]
         st.session_state.editor_key += 1
         st.session_state.pop("preview", None)
         st.rerun()
     df = pd.DataFrame(st.session_state.rows,
-                      columns=["contact","account","notes","next_steps","subject"])
-    edited = st.data_editor(df, num_rows="dynamic", hide_index=True,
-                            width="stretch",
+                      columns=["contact","account_number","account","notes","next_steps","subject"])
+    edited = st.data_editor(
+        df, num_rows="dynamic", hide_index=True, width="stretch",
+        column_config={"account_number": st.column_config.TextColumn(
+            "Account Number (override)", help="Leave blank to use the default number above."
+        )},
                             key=f"editor_{st.session_state.editor_key}")
     if st.button("Preview bulk entries", type="primary"):
         try:
             normalized = edited.fillna("").to_dict("records")
             calls = make_bulk_calls(normalized, day, first, default_account,
                                     organizer=organizer, sales_territory=territory,
-                                    activity_defaults=activity_defaults)
+                                    activity_defaults=activity_defaults,
+                                    default_account_number=default_account_number)
             if not calls:
                 st.warning("Enter at least one contact")
             else:
@@ -160,13 +173,13 @@ with bulk_tab:
     if "preview" in st.session_state:
         preview = pd.DataFrame([x.sap_fields() for x in st.session_state.preview])
         st.dataframe(preview[[
-            "account","primary_contact","subject",
+            "account_number","account","primary_contact","subject",
             "start_date","start_time","end_date","end_time",
             "reason_for_conversation","type_of_contact",
             "reason_for_contact","product_level_3","notes"
         ]], hide_index=True)
-        if preview["account"].eq("").any():
-            st.warning("Some records have no Account; mock upload requires one.")
+        if preview["account_number"].eq("").any():
+            st.warning("Account Number is required for every record.")
         if st.button("Add all to queue"):
             st.session_state.queue.extend(st.session_state.preview)
             del st.session_state.preview
@@ -179,7 +192,7 @@ with queue_tab:
                    for x in st.session_state.queue]
         df = pd.DataFrame(records)
         st.dataframe(df[[
-            "account","primary_contact","subject","start_date","start_time",
+            "account_number","account","primary_contact","subject","start_date","start_time",
             "end_date","end_time","reason_for_conversation","type_of_contact",
             "reason_for_contact","product_level_3","product_level_4",
             "organizer","sales_territory","notes","source"
