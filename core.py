@@ -11,6 +11,26 @@ DEFAULT_REASON_FOR_CONTACT = "(New-) Product Presentation"
 DEFAULT_PRODUCT_LEVEL_3 = "210 General Lab consumables"
 MEETING_DURATION_MINUTES = 30
 
+# Editable defaults exposed by the Streamlit sidebar.
+DEFAULT_ACTIVITY_FIELDS = {
+    "reason_for_conversation": DEFAULT_REASON_FOR_CONVERSATION,
+    "type_of_contact": DEFAULT_TYPE_OF_CONTACT,
+    "reason_for_contact": DEFAULT_REASON_FOR_CONTACT,
+    "product_level_3": DEFAULT_PRODUCT_LEVEL_3,
+}
+
+def validate_activity_defaults(overrides=None):
+    """Return a clean, complete set of C4C defaults; fail on unknown/blank fields."""
+    result = DEFAULT_ACTIVITY_FIELDS.copy()
+    for name, value in (overrides or {}).items():
+        if name not in result:
+            raise ValueError(f"Unsupported activity default: {name}")
+        result[name] = str(value).strip()
+    missing = [name for name, value in result.items() if not value]
+    if missing:
+        raise ValueError("Fill in activity defaults: " + ", ".join(missing))
+    return result
+
 @dataclass
 class Call:
     id: str
@@ -80,7 +100,9 @@ class Call:
         return fields
 
 def make_bulk_calls(attendees, meeting_date: date, first_time: time,
-                    default_account="", organizer="", sales_territory=""):
+                    default_account="", organizer="", sales_territory="",
+                    activity_defaults=None):
+    resolved_defaults = validate_activity_defaults(activity_defaults)
     rows = [r for r in attendees if str(r.get("contact") or "").strip()]
     start = first_time.hour * 60 + first_time.minute
     # Keep both start AND end date on the user-selected day.
@@ -104,6 +126,7 @@ def make_bulk_calls(attendees, meeting_date: date, first_time: time,
             next_steps=str(row.get("next_steps") or "").strip(),
             organizer=organizer.strip(),
             sales_territory=sales_territory.strip(),
+            **resolved_defaults,
         ))
     return calls
 
