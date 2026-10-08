@@ -110,7 +110,7 @@ with bulk_tab:
     df = pd.DataFrame(st.session_state.rows,
                       columns=["contact","account","notes","next_steps","subject"])
     edited = st.data_editor(df, num_rows="dynamic", hide_index=True,
-                            use_container_width=True,
+                            width="stretch",
                             key=f"editor_{st.session_state.editor_key}")
     if st.button("Preview bulk entries", type="primary"):
         try:
