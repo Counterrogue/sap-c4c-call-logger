@@ -4,8 +4,8 @@
 
 ## Features
 
-- **Meeting notes:** Convert typed meeting notes or a transcript into editable call fields; optional AI for synthetic handwritten notes.
-- **University call day:** Paste 12–16+ contacts. Two activities start at 9:00, two at 9:30, and so on. Each end time is **30 minutes after its start**. All start and end dates stay on the selected day. A bulk entry that would end after midnight is rejected.
+- **Meeting notes:** Enter the exact Account Number at the top, then convert typed meeting notes or a transcript into editable call fields; optional AI for synthetic handwritten notes.
+- **University call day:** Enter a default Account Number at the top; optionally override that number on individual rows. Paste 12–16+ contacts. Two activities start at 9:00, two at 9:30, and so on. Each end time is **30 minutes after its start**. All start and end dates stay on the selected day. A bulk entry that would end after midnight is rejected.
 - **Save verification:** Playwright fills the *local mock* C4C form and reads back every saved field before marking the activity verified.
 - **Approval:** Not automated. The user will review/fix entries and manually submit them in SAP after future authorized integration.
 
@@ -13,7 +13,8 @@
 
 | C4C field | Prototype behavior |
 |---|---|
-| Account | Provided per entry; required |
+| Account Number | **Required exact lookup key**; preserves leading zeros, overrides account name |
+| Account name | Optional display label; **never** used as the matching key |
 | Primary Contact | Provided per entry; required |
 | Subject | Notes-based or `General discussion/Check in` |
 | Reason for Conversation | Sidebar-editable; initially **Without opportunity reference** |
@@ -43,7 +44,7 @@ The LOCAL simulator allows any nonblank dropdown label to make prototype testing
 2. Download this repository with **Code → Download ZIP** and extract it.
 3. Double-click `setup_windows.bat` to install packages and Playwright Chromium.
 4. Double-click `run_visible_windows.bat` to open Streamlit (usually http://localhost:8501) and show the automated browser.
-5. Enter fictional data in **University call day**, preview it, add all to the review queue, then select **Send queue to LOCAL mock CRM**. Playwright should fill the simulated form and verify every field.
+5. Enter a fictional Account Number (e.g. `00001234`) and fictional contacts in **University call day**, preview them, add all to the review queue, then select **Send queue to LOCAL mock CRM**. Playwright should fill the simulated form and verify every field.
 6. Use `run_windows.bat` for invisible/headless browser automation.
 
 ## Optional AI and tests
@@ -66,5 +67,7 @@ GitHub Actions runs the Python and Playwright tests on each push.
 - `mock_sap.py`: simulated CRM form (localhost only).
 - `browser_automation.py`: simulated browser entry and full-field readback.
 - `tests/`: automated tests.
+
+**Account Number note:** The C4C screenshot shows an **Account** lookup, not a separate Account Number text field. The number is stored as a lookup key in this prototype; once IT approves the live adapter, Playwright must search the real Account picker by this number and validate the selected C4C account's ID before saving. Account names are never authoritative.
 
 **Not yet implemented:** Real SAP field selectors, account/contact lookup IDs, actual server-side saved-record verification, duplicate safeguards for production, or customer/contact creation. These require IT approval and mapping the real browser interface.
