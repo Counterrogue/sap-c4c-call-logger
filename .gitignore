@@ -8,3 +8,6 @@ __pycache__/
 *.json
 *.log
 .DS_Store
+
+# User-edited settings stay on this computer; never publish them.
+.local_activity_defaults.json*
