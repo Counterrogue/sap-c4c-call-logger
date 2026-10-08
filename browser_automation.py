@@ -29,7 +29,15 @@ def submit_to_mock(calls):
                     for field, value in expected.items():
                         control = page.locator("#" + field)
                         if field in SELECT_FIELDS:
-                            control.select_option(label=str(value))
+                            # MOCK ONLY: dynamically add the configured label so the
+                            # simulator can test choices not present in its tiny list.
+                            # Real SAP must select a valid option already in C4C.
+                            control.evaluate("""(select, value) => {
+                                if (![...select.options].some(o => o.value === value)) {
+                                    select.add(new Option(value, value));
+                                }
+                            }""", str(value))
+                            control.select_option(value=str(value))
                         else:
                             control.fill(str(value))
                     page.get_by_role("button", name="Save draft activity").click()
