@@ -22,8 +22,8 @@ def submit_to_mock(calls):
             for call in calls:
                 try:
                     expected = call.sap_fields()
-                    if not expected["account"] or not expected["primary_contact"] or not expected["sales_territory"]:
-                        raise ValueError("Account, Primary Contact and Sales Territory are required")
+                    if not expected["account_number"] or not expected["primary_contact"] or not expected["sales_territory"]:
+                        raise ValueError("Account Number, Primary Contact and Sales Territory are required")
                     page.goto(url, wait_until="domcontentloaded")
                     page.locator("#record_id").evaluate("(element,value)=>element.value=value", call.id)
                     for field, value in expected.items():
