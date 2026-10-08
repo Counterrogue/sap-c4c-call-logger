@@ -5,10 +5,10 @@ from uuid import uuid4
 import pandas as pd
 import streamlit as st
 from core import (
-    Call, DEFAULT_NOTE, DEFAULT_REASON_FOR_CONVERSATION,
-    DEFAULT_TYPE_OF_CONTACT, DEFAULT_REASON_FOR_CONTACT,
-    DEFAULT_PRODUCT_LEVEL_3, make_bulk_calls, parse_pasted_attendees,
+    Call, DEFAULT_NOTE, DEFAULT_ACTIVITY_FIELDS, validate_activity_defaults,
+    make_bulk_calls, parse_pasted_attendees,
 )
+from settings import DEFAULT_SETTINGS, load_settings, save_settings, reset_settings
 from ai_processing import extract_call
 from browser_automation import submit_to_mock
 
@@ -16,18 +16,43 @@ st.set_page_config(page_title="C4C Call Logger — LOCAL Demo", page_icon="📋"
 st.title("C4C Sales Call Logger")
 st.caption("LOCAL prototype. No SAP connection or approval submission.")
 
+if "settings_initialized" not in st.session_state:
+    for name, value in load_settings().items():
+        st.session_state["setting_" + name] = value
+    st.session_state.settings_initialized = True
+
+def restore_activity_defaults():
+    reset_settings()
+    for name, value in DEFAULT_SETTINGS.items():
+        st.session_state["setting_" + name] = value
+
 with st.sidebar:
-    st.subheader("Activity defaults")
-    st.text("Type of contact: " + DEFAULT_TYPE_OF_CONTACT)
-    st.text("Reason for conversation: " + DEFAULT_REASON_FOR_CONVERSATION)
-    st.text("Reason for contact: " + DEFAULT_REASON_FOR_CONTACT)
-    st.text("Product level 3: " + DEFAULT_PRODUCT_LEVEL_3)
-    st.caption("Default values apply to both modes. We can make these context-driven later.")
+    st.subheader("Editable activity defaults")
+    st.text_input("Type of contact *", key="setting_type_of_contact")
+    st.text_input("Reason for Conversation *", key="setting_reason_for_conversation")
+    st.text_input("Reason for contact *", key="setting_reason_for_contact")
+    st.text_input("Product level 3 *", key="setting_product_level_3")
+    st.caption("Enter the exact labels used by your C4C dropdowns. These are free-text in the local prototype.")
     st.divider()
-    st.subheader("Demo account settings")
-    organizer = st.text_input("Organizer", value="Demo Organizer")
-    territory = st.text_input("Sales Territory *", value="Demo Territory")
-    st.caption("Replace these sample values in the local test. In real C4C, we will verify the organizer and territory lookup IDs.")
+    st.subheader("Account settings")
+    organizer = st.text_input("Organizer", key="setting_organizer")
+    territory = st.text_input("Sales Territory *", key="setting_sales_territory")
+    if st.button("Save settings on this computer"):
+        try:
+            save_settings({
+                key: st.session_state["setting_" + key]
+                for key in DEFAULT_SETTINGS
+            })
+            st.success("Saved locally. Not uploaded to GitHub.")
+        except (ValueError, OSError) as error:
+            st.error(str(error))
+    st.button("Restore built-in defaults", on_click=restore_activity_defaults)
+    st.caption("Edits apply to newly created activities. Existing queued entries do not change.")
+
+activity_defaults = {
+    key: st.session_state["setting_" + key]
+    for key in DEFAULT_ACTIVITY_FIELDS
+}
 
 if "queue" not in st.session_state:
     st.session_state.queue = []
@@ -80,15 +105,22 @@ with notes_tab:
             next_steps = st.text_area("Next steps (appended to Notes in C4C)",
                                       value=draft.get("next_steps") or "")
             if st.form_submit_button("Add to queue"):
-                call = Call(
-                    id=str(uuid4()), account=draft["account"], contact=draft["contact"],
-                    date=draft["date"], start_time=draft["start_time"],
-                    subject=subject, notes=clean_notes, next_steps=next_steps,
-                    source="meeting-notes", organizer=organizer, sales_territory=territory
-                )
-                st.session_state.queue.append(call)
-                del st.session_state.draft
-                st.success("Activity added to review queue")
+                try:
+                    defaults = validate_activity_defaults(activity_defaults)
+                    if not territory.strip():
+                        raise ValueError("Sales Territory is required")
+                    call = Call(
+                        id=str(uuid4()), account=draft["account"], contact=draft["contact"],
+                        date=draft["date"], start_time=draft["start_time"],
+                        subject=subject, notes=clean_notes, next_steps=next_steps,
+                        source="meeting-notes", organizer=organizer, sales_territory=territory,
+                        **defaults,
+                    )
+                    st.session_state.queue.append(call)
+                    del st.session_state.draft
+                    st.success("Activity added to review queue")
+                except ValueError as error:
+                    st.error(str(error))
 
 with bulk_tab:
     st.subheader("University call-day bulk entry")
@@ -116,7 +148,8 @@ with bulk_tab:
         try:
             normalized = edited.fillna("").to_dict("records")
             calls = make_bulk_calls(normalized, day, first, default_account,
-                                    organizer=organizer, sales_territory=territory)
+                                    organizer=organizer, sales_territory=territory,
+                                    activity_defaults=activity_defaults)
             if not calls:
                 st.warning("Enter at least one contact")
             else:
