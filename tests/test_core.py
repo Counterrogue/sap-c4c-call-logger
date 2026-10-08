@@ -3,6 +3,7 @@ import pytest
 from core import (Call, DEFAULT_NOTE, DEFAULT_REASON_FOR_CONVERSATION,
                   DEFAULT_REASON_FOR_CONTACT, DEFAULT_TYPE_OF_CONTACT,
                   DEFAULT_PRODUCT_LEVEL_3, make_bulk_calls, parse_pasted_attendees,
+                  validate_activity_defaults,
                   local_notes_draft)
 
 def test_two_per_block_and_end_times():
@@ -52,3 +53,26 @@ def test_midnight_guard():
     with pytest.raises(ValueError, match="midnight"):
         make_bulk_calls([{"contact":"A"},{"contact":"B"},{"contact":"C"}],
                         date(2026,10,8),time(23,45),"Demo University")
+
+def test_custom_activity_defaults_apply_to_bulk_and_retain_time_rules():
+    custom = {
+        "reason_for_conversation": "Custom conversation",
+        "type_of_contact": "Custom contact method",
+        "reason_for_contact": "Custom reason",
+        "product_level_3": "Custom product category",
+    }
+    calls = make_bulk_calls([{"contact":"Dr A"},{"contact":"Dr B"},{"contact":"Dr C"}],
+                            date(2026,10,8), time(9,0), "Demo University",
+                            organizer="Demo Organizer", sales_territory="Demo Territory",
+                            activity_defaults=custom)
+    for call in calls:
+        for key, value in custom.items():
+            assert call.sap_fields()[key] == value
+    assert [c.start_time for c in calls] == ["09:00", "09:00", "09:30"]
+    assert [c.end_time for c in calls] == ["09:30", "09:30", "10:00"]
+
+def test_activity_defaults_reject_blank_and_unknown_values():
+    with pytest.raises(ValueError, match="Fill in"):
+        validate_activity_defaults({"type_of_contact": "   "})
+    with pytest.raises(ValueError, match="Unsupported"):
+        validate_activity_defaults({"campaign": "None"})
