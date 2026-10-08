@@ -50,6 +50,7 @@ class Call:
     product_level_4: str = ""
     organizer: str = ""
     sales_territory: str = ""
+    account_number: str = ""  # Exact C4C account lookup key; keep as text (leading zeroes)
 
     @property
     def end_datetime(self):
@@ -76,6 +77,7 @@ class Call:
     def sap_fields(self):
         """Fields visible in the supplied C4C form; Campaign intentionally excluded."""
         return {
+            "account_number": self.account_number.strip(),
             "account": self.account.strip(),
             "primary_contact": self.contact.strip(),
             "subject": self.subject.strip() or DEFAULT_NOTE,
@@ -101,8 +103,9 @@ class Call:
 
 def make_bulk_calls(attendees, meeting_date: date, first_time: time,
                     default_account="", organizer="", sales_territory="",
-                    activity_defaults=None):
+                    activity_defaults=None, default_account_number=""):
     resolved_defaults = validate_activity_defaults(activity_defaults)
+    default_account_number = str(default_account_number or "").strip()
     rows = [r for r in attendees if str(r.get("contact") or "").strip()]
     start = first_time.hour * 60 + first_time.minute
     # Keep both start AND end date on the user-selected day.
@@ -115,9 +118,13 @@ def make_bulk_calls(attendees, meeting_date: date, first_time: time,
         subject = str(row.get("subject") or "").strip() or (
             DEFAULT_NOTE if notes == DEFAULT_NOTE else "Sales discussion"
         )
+        account_number = str(row.get("account_number") or "").strip() or default_account_number
+        if not account_number:
+            raise ValueError(f"Account Number is required for {row['contact']}")
         calls.append(Call(
             id=str(uuid4()),
             account=str(row.get("account") or "").strip() or default_account.strip(),
+            account_number=account_number,
             contact=str(row["contact"]).strip(),
             date=meeting_date.isoformat(),
             start_time=f"{minute // 60:02d}:{minute % 60:02d}",
