@@ -1,12 +1,19 @@
-from urllib.request import urlopen,Request
+from urllib.request import urlopen, Request
 import json
+from datetime import date, time
+from core import make_bulk_calls
 from mock_sap import start_mock_server
 
-def test_mock_save():
-    url=start_mock_server()
-    obj={"id":"mock-test-123","account":"Demo U","contact":"Dr A","date":"2026-10-08","start_time":"09:00","subject":"Check in","notes":"General discussion/Check in"}
-    req=Request(url+"/save",data=json.dumps(obj).encode(),headers={"Content-Type":"application/json"})
-    with urlopen(req) as r:
-        assert json.load(r)["id"]==obj["id"]
-    with urlopen(url+"/records") as r:
-        assert obj["id"] in [v["id"] for v in json.load(r)]
+def test_mock_save_and_readback():
+    url = start_mock_server()
+    call = make_bulk_calls([{"contact":"Dr A"}],date(2026,10,8),time(9,0),
+                           "Demo University", organizer="Demo Organizer",
+                           sales_territory="Demo Territory")[0]
+    obj = {"id":call.id, **call.sap_fields()}
+    request = Request(url+"/save",data=json.dumps(obj).encode(),
+                      headers={"Content-Type":"application/json"})
+    with urlopen(request) as response:
+        assert json.load(response)["id"] == obj["id"]
+    with urlopen(url+"/records") as response:
+        stored = {entry["id"]:entry for entry in json.load(response)}
+    assert stored[call.id] == obj
